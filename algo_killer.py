@@ -109,8 +109,10 @@ def send_emails(
             body = (
                 f"Salut {a['participant_name']},\n\n"
                 f"Ta cible: {a['target_name']}\n"
-                f"Mission associée à ta cible: {a['mission']}\n\n"
+                f"Ta mission est que {a['target_name']} doit {a['mission']}\n\n"
                 "Rappel: pas de violence, pas de mise en danger.\n"
+                "Interdiction de juger la beauté de cet email, c'est un putain de script python j'ai fait comme j'ai pu pour qu'il soit lisible"
+                "\n\n Signé votre Justinounet. Cette page va sûrement s'embellir"
             )
             msg = build_email(subject, sender, a["participant_email"], body)
             try:
