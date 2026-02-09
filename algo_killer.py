@@ -8,6 +8,8 @@ import ssl
 from email.message import EmailMessage
 from typing import Dict, List, Tuple
 
+from email_template import build_email_html
+
 
 def _normalize(s: str) -> str:
     return (s or "").strip().lower()
@@ -82,13 +84,22 @@ def assign_targets_and_missions(
     return assignments, target_to_mission
 
 
-def build_email(subject: str, sender: str, recipient: str, body: str) -> EmailMessage:
+def build_email(
+        subject: str,
+        sender: str,
+        recipient: str,
+        body_text: str,
+        body_html: str,
+) -> EmailMessage:
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = recipient
-    msg.set_content(body)
+    msg.set_content(body_text)
+    msg.add_alternative(body_html, subtype="html")
     return msg
+
+
 
 
 def send_emails(
@@ -106,7 +117,7 @@ def send_emails(
         server.starttls(context=context)
         server.login(smtp_user, smtp_password)
         for a in assignments:
-            body = (
+            body_text = (
                 f"Salut {a['participant_name']},\n\n"
                 f"Ta cible: {a['target_name']}\n"
                 f"Ta mission est que {a['target_name']} doit {a['mission']}\n\n"
@@ -117,7 +128,18 @@ def send_emails(
                 "Interdiction de juger la beauté de cet email, c'est un putain de script python j'ai fait comme j'ai pu pour qu'il soit lisible"
                 "\n\n Signé votre Justinounet. Cette page va sûrement s'embellir"
             )
-            msg = build_email(subject, sender, a["participant_email"], body)
+            body_html = build_email_html(
+                participant_name=a["participant_name"],
+                target_name=a["target_name"],
+                mission=a["mission"],
+            )
+            msg = build_email(
+                subject,
+                sender,
+                a["participant_email"],
+                body_text,
+                body_html,
+            )
             try:
                 server.send_message(msg)
             except Exception as exc:  # noqa: BLE001
