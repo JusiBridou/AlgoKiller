@@ -38,4 +38,8 @@ Une mission par ligne (les lignes vides sont ignorées). Il doit y avoir au moin
 
 ## Règle d’arrêt
 
-L’attribution se fait en **une seule boucle**. Si un participant reçoit sa propre cible, le jeu s’arrête immédiatement et **aucun email n’est envoyé**. Relancez plus tard pour recommencer.
+L’attribution se fait en **une seule boucle**. Une fois que tous les participants obtiennent une cible et une mission, l'algorithme s'arrête.
+
+## Contraintes
+
+Pour que l'envoie d'email fonctionne, il faut que tous les emails du fichier participants.csv soient uniques.

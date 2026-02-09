@@ -27,14 +27,19 @@ def load_participants(csv_path: str) -> List[Dict[str, str]]:
         if not name_key or not email_key:
             raise ValueError("Le CSV doit contenir des colonnes 'name/nom' et 'email/mail'.")
         participants = []
+        seen_emails = set()
         for row in reader:
             name = (row.get(name_key) or "").strip()
             email = (row.get(email_key) or "").strip()
             if not name or not email:
                 continue
+            email_key_norm = _normalize(email)
+            if email_key_norm in seen_emails:
+                raise ValueError(f"Email en double dans le CSV: {email}")
+            seen_emails.add(email_key_norm)
             participants.append({"name": name, "email": email})
-        if len(participants) < 2:
-            raise ValueError("Il faut au moins 2 participants.")
+        if len(participants) < 3:
+            raise ValueError("Il faut au moins 3 participants.")
         return participants
 
 
@@ -52,16 +57,11 @@ def assign_targets_and_missions(
     if len(missions) < len(participants):
         raise ValueError("Il doit y avoir au moins autant de missions que de cibles.")
 
-    targets = participants[:]  # same people as targets
-    rng.shuffle(targets)
+    rng.shuffle(participants)
 
-    # One single assignment loop. If someone gets themselves, end game.
-    for i, participant in enumerate(participants):
-        if _normalize(participant["name"]) == _normalize(targets[i]["name"]):
-            raise ValueError(
-                "Attribution invalide: un participant a obtenu sa propre cible. "
-                "Relancez plus tard pour recommencer le jeu."
-            )
+    # Une seule boucle d'attribution: on décale les participants de 1.
+    # participant[i] -> target[i] où target est la liste décalée.
+    targets = participants[1:] + participants[:1]
 
     rng.shuffle(missions)
     target_to_mission = {t["email"]: missions[i] for i, t in enumerate(targets)}
@@ -91,7 +91,16 @@ def build_email(subject: str, sender: str, recipient: str, body: str) -> EmailMe
     return msg
 
 
-def send_emails(assignments: List[Dict[str, str]], smtp_host: str, smtp_port: int, smtp_user: str, smtp_password: str, sender: str, subject: str) -> None:
+def send_emails(
+    assignments: List[Dict[str, str]],
+    smtp_host: str,
+    smtp_port: int,
+    smtp_user: str,
+    smtp_password: str,
+    sender: str,
+    subject: str,
+) -> List[Dict[str, str]]:
+    failures: List[Dict[str, str]] = []
     context = ssl.create_default_context()
     with smtplib.SMTP(smtp_host, smtp_port) as server:
         server.starttls(context=context)
@@ -104,7 +113,17 @@ def send_emails(assignments: List[Dict[str, str]], smtp_host: str, smtp_port: in
                 "Rappel: pas de violence, pas de mise en danger.\n"
             )
             msg = build_email(subject, sender, a["participant_email"], body)
-            server.send_message(msg)
+            try:
+                server.send_message(msg)
+            except Exception as exc:  # noqa: BLE001
+                failures.append(
+                    {
+                        "participant_name": a["participant_name"],
+                        "participant_email": a["participant_email"],
+                        "error": str(exc),
+                    }
+                )
+    return failures
 
 
 def write_assignments_csv(assignments: List[Dict[str, str]], output_path: str) -> None:
@@ -115,6 +134,16 @@ def write_assignments_csv(assignments: List[Dict[str, str]], output_path: str) -
         )
         writer.writeheader()
         writer.writerows(assignments)
+
+
+def write_failed_emails(failures: List[Dict[str, str]], output_path: str) -> None:
+    with open(output_path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["participant_name", "participant_email", "error"],
+        )
+        writer.writeheader()
+        writer.writerows(failures)
 
 
 def main() -> int:
@@ -162,7 +191,7 @@ def main() -> int:
             + ", ".join(missing)
         )
 
-    send_emails(
+    failures = send_emails(
         assignments,
         smtp_host=args.smtp_host,
         smtp_port=args.smtp_port,
@@ -171,6 +200,13 @@ def main() -> int:
         sender=args.sender,
         subject=args.subject,
     )
+
+    if failures:
+        write_failed_emails(failures, "failed_emails.csv")
+        raise ValueError(
+            "Erreur d'envoi: certains emails n'ont pas été envoyés. "
+            "Détails dans failed_emails.csv."
+        )
 
     print(f"Emails envoyés: {len(assignments)}")
     return 0
