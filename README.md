@@ -34,7 +34,8 @@ Une mission par ligne (les lignes vides sont ignorées). Il doit y avoir au moin
 
 `python algo_killer.py --participants participants.csv --missions missions.txt --smtp-host smtp.example.com --smtp-user moncompte --smtp-password monmdp --sender killer@example.com`
 
-> Pour plus de confort, vous pouvez définir les variables d’environnement `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SENDER`.
+> Par defaut, un fichier `attributions.csv` est genere a chaque execution dans le dossier du script.
+> Pour plus de confort, vous pouvez definir les variables d’environnement `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SENDER`.
 
 ## Règle d’arrêt
 

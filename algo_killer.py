@@ -157,7 +157,11 @@ def main() -> int:
     parser.add_argument("--missions", required=True, help="Fichier texte des missions (1 par ligne)")
     parser.add_argument("--seed", type=int, default=None, help="Graine aléatoire optionnelle")
     parser.add_argument("--dry-run", action="store_true", help="N'envoie pas d'email")
-    parser.add_argument("--output", help="Chemin CSV pour exporter les attributions")
+    parser.add_argument(
+        "--output",
+        default="attributions.csv",
+        help="Chemin CSV pour exporter les attributions (defaut: attributions.csv)",
+    )
 
     parser.add_argument("--smtp-host", default=os.getenv("SMTP_HOST"))
     parser.add_argument("--smtp-port", type=int, default=int(os.getenv("SMTP_PORT", "587")))
@@ -173,8 +177,11 @@ def main() -> int:
     rng = random.Random(args.seed)
     assignments, _ = assign_targets_and_missions(participants, missions, rng)
 
-    if args.output:
-        write_assignments_csv(assignments, args.output)
+    output_path = args.output
+    if not os.path.isabs(output_path):
+        output_path = os.path.join(os.path.dirname(__file__), output_path)
+    write_assignments_csv(assignments, output_path)
+    print(f"CSV des attributions ecrit: {output_path}")
 
     if args.dry_run:
         print(f"Attributions générées: {len(assignments)} (dry-run)")

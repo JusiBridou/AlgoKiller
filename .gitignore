@@ -11,6 +11,7 @@ __pycache__/
 # Private data
 missions.txt
 participants.csv
+participants_tests.csv
 commandessecrètes.txt
 
 # Virtual environments
