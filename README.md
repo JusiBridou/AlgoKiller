@@ -19,12 +19,31 @@ Loga ne peut plus jouer, mais elle peut encore aider les autres 🕵️‍♀️
 ### Fichier participants (CSV)
 
 Le CSV doit contenir des en-tetes avec *nom* et *email* (ex: `nom,email`). Les separateurs `,` ou `;` sont acceptes.
-Vous pouvez ajouter une colonne optionnelle `categories_bannies` pour exclure certaines missions.
-Exemple: `nom,email,categories_bannies` avec `contact,prank`.
 
+Pour rendre le jeu plus accessible il est possible d'ajouter une colonne `categories_bannies` au fichier CSV. Cette colonne peut servir à bannir certaines missions pour certaines cibles. Par exemple, si une des missions disponible est "Faire 100 pompes" et  qu'un des particpants ne peut pas en faire alors il peut bannir la catégorie "sport" pour ne pas avoir à faire cette mission.
+
+Un participant peut bannir plusieurs catégories, ou aucune.
+
+Exemple :
+
+| nom  | email             | categories_bannies |
+| ---- | ----------------- | ------------------ |
+| Jusi | jusi@example.com  | prank              |
+| Loga | loga@example.com  | sport,social       |
+| Ino  | ino@example.com   |                    |
 ### Fichier missions (CSV)
 
-Le CSV doit contenir une colonne `mission`. Une colonne `categories` optionnelle peut lister des categories separees par des virgules. Il doit y avoir au moins autant de missions que de cibles.
+Le CSV doit contenir une colonne `mission`. Une colonne `categories` optionnelle peut lister des categories. Il doit y avoir au moins autant de missions que de cibles.
+
+Exemple :
+
+| mission  | categories             |
+| ---- | ----------------- |
+| te laisser faire son vernis | art  |
+| faire 5 pompes ou 1 seconde de gainage | sport  |
+| porter tes chaussures  | prank   |
+| hurler de toutes ses forces  | social   |
+| imiter les gestes de quelqu'un devant lui  | social   |
 
 ### Exemples de commandes
 
