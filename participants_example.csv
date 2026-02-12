@@ -1,3 +1,5 @@
-nom,email
-Jusi,Jusi@example.com
-Loga,loga@example.com
+nom,email,categories_bannies
+Jusi,Jusi@example.com,prank
+Loga,loga@example.com,"sport,challenge"
+Dam,dam@example.com
+Ary-Dom,ary-dom@example.com,art

@@ -9,7 +9,7 @@ __pycache__/
 *.whl
 
 # Private data
-missions.txt
+missions.csv
 participants.csv
 participants_tests.csv
 commandessecrètes.txt

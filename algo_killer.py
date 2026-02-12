@@ -6,7 +6,7 @@ import random
 import smtplib
 import ssl
 from email.message import EmailMessage
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 from email_template import build_email_html
 
@@ -15,17 +15,31 @@ def _normalize(s: str) -> str:
     return (s or "").strip().lower()
 
 
-def load_participants(csv_path: str) -> List[Dict[str, str]]:
+def _parse_categories(value: str) -> Set[str]:
+    if not value:
+        return set()
+    return {c.strip().lower() for c in value.split(",") if c.strip()}
+
+
+def load_participants(csv_path: str) -> List[Dict[str, object]]:
     with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
         sample = f.read(4096)
         f.seek(0)
-        dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+        except csv.Error:
+            dialect = csv.excel
         reader = csv.DictReader(f, dialect=dialect)
         if not reader.fieldnames:
             raise ValueError("Fichier CSV sans en-têtes.")
         headers = {_normalize(h): h for h in reader.fieldnames}
         name_key = headers.get("name") or headers.get("nom")
         email_key = headers.get("email") or headers.get("mail")
+        categories_key = (
+            headers.get("categories_bannies")
+            or headers.get("categories bannies")
+            or headers.get("categories")
+        )
         if not name_key or not email_key:
             raise ValueError("Le CSV doit contenir des colonnes 'name/nom' et 'email/mail'.")
         participants = []
@@ -33,28 +47,71 @@ def load_participants(csv_path: str) -> List[Dict[str, str]]:
         for row in reader:
             name = (row.get(name_key) or "").strip()
             email = (row.get(email_key) or "").strip()
+            categories_raw = (row.get(categories_key) or "").strip() if categories_key else ""
             if not name or not email:
                 continue
             email_key_norm = _normalize(email)
             if email_key_norm in seen_emails:
                 raise ValueError(f"Email en double dans le CSV: {email}")
             seen_emails.add(email_key_norm)
-            participants.append({"name": name, "email": email})
+            participants.append(
+                {
+                    "name": name,
+                    "email": email,
+                    "banned_categories": _parse_categories(categories_raw),
+                }
+            )
         if len(participants) < 3:
             raise ValueError("Il faut au moins 3 participants.")
         return participants
 
 
-def load_missions(missions_path: str) -> List[str]:
-    with open(missions_path, "r", encoding="utf-8") as f:
-        missions = [line.strip() for line in f if line.strip()]
+def load_missions(missions_path: str) -> List[Dict[str, object]]:
+    with open(missions_path, "r", encoding="utf-8-sig", newline="") as f:
+        sample = f.read(4096)
+        f.seek(0)
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t", "|"])
+        except csv.Error:
+            dialect = csv.excel
+        reader = csv.DictReader(f, dialect=dialect)
+        if not reader.fieldnames:
+            raise ValueError("Fichier CSV des missions sans en-tetes.")
+        headers = {_normalize(h): h for h in reader.fieldnames}
+        mission_key = headers.get("mission") or headers.get("missions")
+        categories_key = headers.get("categories")
+        if not mission_key:
+            raise ValueError("Le CSV des missions doit contenir une colonne 'mission'.")
+        missions: List[Dict[str, object]] = []
+        for row in reader:
+            mission = (row.get(mission_key) or "").strip()
+            if mission:
+                categories_raw = (row.get(categories_key) or "").strip() if categories_key else ""
+                missions.append(
+                    {
+                        "text": mission,
+                        "categories": _parse_categories(categories_raw),
+                    }
+                )
     if not missions:
         raise ValueError("La liste des missions est vide.")
     return missions
 
 
+def _mission_allowed(mission: Dict[str, object], participant: Dict[str, object]) -> bool:
+    banned = participant.get("banned_categories", set())
+    if not banned:
+        return True
+    categories = mission.get("categories", set())
+    if not categories:
+        return True
+    return not set(categories).intersection(set(banned))
+
+
 def assign_targets_and_missions(
-    participants: List[Dict[str, str]], missions: List[str], rng: random.Random
+    participants: List[Dict[str, object]],
+    missions: List[Dict[str, object]],
+    rng: random.Random,
 ) -> Tuple[List[Dict[str, str]], Dict[str, str]]:
     if len(missions) < len(participants):
         raise ValueError("Il doit y avoir au moins autant de missions que de cibles.")
@@ -65,10 +122,31 @@ def assign_targets_and_missions(
     # participant[i] -> target[i] où target est la liste décalée.
     targets = participants[1:] + participants[:1]
 
-    rng.shuffle(missions)
-    target_to_mission = {t["email"]: missions[i] for i, t in enumerate(targets)}
+    target_to_mission: Dict[str, str] = {}
+    assignments: List[Dict[str, str]] = []
 
-    assignments = []
+    max_attempts = 200
+    for _ in range(max_attempts):
+        missions_pool = missions[:]
+        rng.shuffle(missions_pool)
+        target_to_mission = {}
+        success = True
+        for target in targets:
+            allowed = [m for m in missions_pool if _mission_allowed(m, target)]
+            if not allowed:
+                success = False
+                break
+            mission = rng.choice(allowed)
+            missions_pool.remove(mission)
+            target_to_mission[target["email"]] = str(mission["text"])
+        if success:
+            break
+
+    if len(target_to_mission) != len(targets):
+        raise ValueError(
+            "Impossible d'attribuer des missions compatibles avec les categories. "
+            "Ajoutez des missions ou ajustez les categories bannies."
+        )
     for i, participant in enumerate(participants):
         target = targets[i]
         mission = target_to_mission[target["email"]]
@@ -176,7 +254,7 @@ def write_failed_emails(failures: List[Dict[str, str]], output_path: str) -> Non
 def main() -> int:
     parser = argparse.ArgumentParser(description="Générateur de Killer (jeu non-violent)")
     parser.add_argument("--participants", required=True, help="CSV des participants (nom+email)")
-    parser.add_argument("--missions", required=True, help="Fichier texte des missions (1 par ligne)")
+    parser.add_argument("--missions", required=True, help="CSV des missions (colonne 'mission')")
     parser.add_argument("--seed", type=int, default=None, help="Graine aléatoire optionnelle")
     parser.add_argument("--dry-run", action="store_true", help="N'envoie pas d'email")
     parser.add_argument(

@@ -18,21 +18,23 @@ Loga ne peut plus jouer, mais elle peut encore aider les autres 🕵️‍♀️
 
 ### Fichier participants (CSV)
 
-Le CSV doit contenir des en‑têtes avec *nom* et *email* (ex: `nom,email`). Les séparateurs `,` ou `;` sont acceptés.
+Le CSV doit contenir des en-tetes avec *nom* et *email* (ex: `nom,email`). Les separateurs `,` ou `;` sont acceptes.
+Vous pouvez ajouter une colonne optionnelle `categories_bannies` pour exclure certaines missions.
+Exemple: `nom,email,categories_bannies` avec `contact,prank`.
 
-### Fichier missions (TXT)
+### Fichier missions (CSV)
 
-Une mission par ligne (les lignes vides sont ignorées). Il doit y avoir au moins autant de missions que de cibles.
+Le CSV doit contenir une colonne `mission`. Une colonne `categories` optionnelle peut lister des categories separees par des virgules. Il doit y avoir au moins autant de missions que de cibles.
 
 ### Exemples de commandes
 
 - Générer et exporter les attributions sans envoyer d’email :
 
-`python algo_killer.py --participants participants.csv --missions missions.txt --dry-run --output attributions.csv`
+`python algo_killer.py --participants participants.csv --missions missions.csv --dry-run --output attributions.csv`
 
 - Envoyer les emails (SMTP) :
 
-`python algo_killer.py --participants participants.csv --missions missions.txt --smtp-host smtp.example.com --smtp-user moncompte --smtp-password monmdp --sender killer@example.com`
+`python algo_killer.py --participants participants.csv --missions missions.csv --smtp-host smtp.example.com --smtp-user moncompte --smtp-password monmdp --sender killer@example.com`
 
 > Par defaut, un fichier `attributions.csv` est genere a chaque execution dans le dossier du script.
 > Pour plus de confort, vous pouvez definir les variables d’environnement `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SENDER`.
